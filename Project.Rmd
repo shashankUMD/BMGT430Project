@@ -94,5 +94,7 @@ dim(car_data_clean)
 ```
 
 ```{r}
-model <- lm(Price ~ Age + Engine.volume + Mileage + Manufacturer + Category + Leather.interior + Fuel.type + Gear.box.type + Drive.wheels + Wheel + Color + Airbags, data = car_data_clean)
+#Multiple Linear Regression Model
+#Response variable has been transformed as original version contained a left skew
+model <- lm(sqrt(Price) ~ Age + Engine.volume + Mileage + Manufacturer + Category + Leather.interior + Fuel.type + Gear.box.type + Drive.wheels + Wheel + Color + Airbags, data = car_data_clean)
 ```
