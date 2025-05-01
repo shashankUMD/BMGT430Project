@@ -1,0 +1,98 @@
+---
+title: "project"
+output: html_document
+date: "2025-05-01"
+---
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(corrplot)
+library(car)
+library(caret)
+library(knitr)
+library(kableExtra)
+```
+
+Data Loading and Exploration
+```{r}
+# Load the dataset
+car_data <- read.csv("BMGT430/car_price_prediction.csv")
+
+# Check if first row contains column names and remove if needed
+if(car_data[1,1] == "ID") {
+  car_data <- car_data[-1,]
+}
+
+# Display dataset dimensions
+dim(car_data)
+
+# Display the first few rows
+head(car_data)
+
+# Check the structure
+str(car_data)
+```
+
+Exploratory Data Analysis
+Distribution of Car Prices
+```{r}
+# Histogram of car prices
+ggplot(car_data_clean, aes(x = Price)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "black") +
+  labs(title = "Distribution of Car Prices", x = "Price", y = "Frequency") +
+  theme_minimal()
+
+# Log transformation of prices to handle skewness
+ggplot(car_data_clean, aes(x = log(Price))) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "black") +
+  labs(title = "Distribution of Log-Transformed Car Prices", x = "Log(Price)", y = "Frequency") +
+  theme_minimal()
+
+```
+Data Cleaning and Preparation
+```{r}
+# Convert character columns to appropriate types
+car_data$Price <- as.numeric(car_data$Price)
+car_data$Levy <- as.numeric(ifelse(car_data$Levy == "-", NA, car_data$Levy))
+car_data$Prod..year <- as.numeric(car_data$Prod..year)
+
+# Clean Engine volume (remove "Turbo" from strings and convert to numeric)
+car_data$Engine.volume <- as.numeric(gsub(" Turbo", "", car_data$Engine.volume))
+
+# Clean Mileage (remove "km" and convert to numeric)
+car_data$Mileage <- as.numeric(gsub(" km", "", car_data$Mileage))
+
+car_data$Cylinders <- as.numeric(car_data$Cylinders)
+car_data$Airbags <- as.numeric(car_data$Airbags)
+
+# Remove rows with missing values or impute them
+car_data_clean <- na.omit(car_data)
+
+# Select numerical variables for outlier detection
+numerical_vars <- c("Price", "Levy", "Prod..year", "Engine.volume", "Mileage", "Cylinders", "Airbags")
+
+# Function to remove outliers using IQR method
+remove_outliers <- function(data, vars) {
+  for (var in vars) {
+    qnt <- quantile(data[[var]], probs = c(0.25, 0.75), na.rm = TRUE)
+    iqr <- qnt[2] - qnt[1]
+    lower <- qnt[1] - 1.5 * iqr
+    upper <- qnt[2] + 1.5 * iqr
+    data <- data[data[[var]] >= lower & data[[var]] <= upper, ]
+  }
+  return(data)
+}
+
+# Remove outliers
+car_data_clean <- remove_outliers(car_data_clean, numerical_vars)
+
+car_data_clean$Age <- 2025 - car_data_clean$Prod..year
+
+# Check dimensions after outlier removal
+dim(car_data_clean)
+```
+
+```{r}
+model <- lm(Price ~ Age + Engine.volume + Mileage + Manufacturer + Category + Leather.interior + Fuel.type + Gear.box.type + Drive.wheels + Wheel + Color + Airbags, data = car_data_clean)
+```
