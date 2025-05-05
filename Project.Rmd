@@ -142,3 +142,8 @@ model5<-lm(log(Price) ~ I(Age-11.50747) + I((Age-11.50747)^2) + I(Mileage-68735.
 summary(model5)
 plot(model5)
 ```
+
+Adding relationship between Manufacturer and Fuel Type
+```{r}
+model6<-lm(log(Price) ~ I(Age-11.50747) + I((Age-11.50747)^2) + I(Mileage-68735.42) + I((Mileage-68735.42)^2) + Engine.volume + factor(Manufacturer) + Manufacturer:Age + Manufacturer:Mileage + Manufacturer:Fuel.type + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
+```
