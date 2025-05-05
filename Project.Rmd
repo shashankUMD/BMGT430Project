@@ -101,7 +101,6 @@ car_data_clean$Mileage <- round(car_data_clean$Mileage, 2)
 
 #Keeping entries where car price is greater than or equal to 10,000
 car_data_clean <- car_data_clean[car_data_clean$Price >= 10000, ]
-
 ```
 
 ```{r}
