@@ -102,10 +102,43 @@ car_data_clean$Mileage <- round(car_data_clean$Mileage, 2)
 #Keeping entries where car price is greater than or equal to 10,000
 car_data_clean <- car_data_clean[car_data_clean$Price >= 10000, ]
 
+attach(car_data_clean)
 ```
 
 ```{r}
-#Multiple Linear Regression Model
-#Response variable has been transformed as original version contained a left skew
-model <- lm(sqrt(Price) ~ Age + Engine.volume + Mileage + Manufacturer + Category + Leather.interior + Fuel.type + Gear.box.type + Drive.wheels + Wheel + Color + Airbags, data = car_data_clean)
+base <- lm(Price ~ Age + Mileage + Engine.volume + factor(Manufacturer) + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
+summary(base)
+plot(base)
+```
+
+```{r}
+model <- lm(log(Price) ~ Age + Mileage + Engine.volume + factor(Manufacturer) + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
+summary(model)
+plot(model)
+```
+
+We thought that different car brands might hold their value differently as they become older so we added the interation term Manufacturer*Age
+```{r}
+model2<-lm(log(Price) ~ Age + Mileage + Engine.volume + factor(Manufacturer) + Manufacturer:Age + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
+summary(model2)
+plot(model2)
+```
+Maybe there is a relationship between different Manufacturers and the mileage
+```{r}
+model3<-lm(log(Price) ~ Age + Mileage + Engine.volume + factor(Manufacturer) + Manufacturer:Age + Manufacturer:Mileage + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
+summary(model3)
+plot(model3)
+```
+
+We thought that the Mileage and Price might have a quadratic relationship rather than a linear on.
+```{r}
+model4<-lm(log(Price) ~ Age + I(Mileage-68735.42) + I((Mileage-68735.42)^2) + Engine.volume + factor(Manufacturer) + Manufacturer:Age + Manufacturer:Mileage + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
+summary(model4)
+plot(model4)
+```
+We then tried the same thing for Age
+```{r}
+model5<-lm(log(Price) ~ I(Age-11.50747) + I((Age-11.50747)^2) + I(Mileage-68735.42) + I((Mileage-68735.42)^2) + Engine.volume + factor(Manufacturer) + Manufacturer:Age + Manufacturer:Mileage + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
+summary(model5)
+plot(model5)
 ```
