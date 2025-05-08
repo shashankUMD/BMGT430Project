@@ -10,8 +10,15 @@ library(car)
 library(knitr)
 library(MASS)
 ```
+#Car Price Prediction
+Our goal is to predict the price of a used car and to understand what factors influence the price of the car.\
+Americans on average spend around $600 every month on a car payement which is around 15% of their take home pay. So buying a car that is actually worth it is really important. So we want to make sure that we don't get scammed or overpay for a car.\
+###Research Questions
+1. What is the major variable that determines the price of a car?\
+2. How close is our prediction to the actual value of a car?\
+3. Does a specific car brand hold its value better?
 
-Data Loading and Exploration
+###Data Loading and Exploration
 ```{r}
 # Load the dataset
 car_data <- read.csv("BMGT430/car_price_prediction.csv")
@@ -31,9 +38,9 @@ head(car_data)
 str(car_data)
 ```
 
-Exploratory Data Analysis
+##Exploratory Data Analysis
 
-# Data Cleaning and Preparation\
+###Data Cleaning and Preparation\
 We need to clean the data up a little\
 First we need to make sure that the numeric data is represented as numerical data and remove any words that might be in the entries.
 ```{r}
@@ -51,36 +58,22 @@ car_data$Mileage <- as.numeric(gsub(" km", "", car_data$Mileage))
 car_data$Cylinders <- as.numeric(car_data$Cylinders)
 car_data$Airbags <- as.numeric(car_data$Airbags)
 ```
+\
 Then we need to remove any rows that have any missing data and this is not a problem since we have so much data we can just get rid of the rows instead of having to fill in those missing points.\
 ```{r}
 # Remove rows with missing values or impute them
 car_data_clean <- na.omit(car_data)
 ```
 The dataset we selected has a few cars that are way to expensive so lets get rid of those rows.\
-Most of the cars under $10,000 have issues that make them really cheap so we removed those cars as well.\
+Most of the cars under \$10,000 have issues that make them really cheap so we removed those cars as well.\
 ```{r}
-# Select numerical variables for outlier detection
-numerical_vars <- c("Price", "Levy", "Prod..year", "Engine.volume", "Mileage", "Cylinders", "Airbags")
 
-# Function to remove outliers using IQR method
-remove_outliers <- function(data, vars) {
-  for (var in vars) {
-    qnt <- quantile(data[[var]], probs = c(0.25, 0.75), na.rm = TRUE)
-    iqr <- qnt[2] - qnt[1]
-    lower <- qnt[1] - 1.5 * iqr
-    upper <- qnt[2] + 1.5 * iqr
-    data <- data[data[[var]] >= lower & data[[var]] <= upper, ]
-  }
-  return(data)
-}
-
-# Remove outliers
-car_data_clean <- remove_outliers(car_data_clean, numerical_vars)
-
-car_data_clean <- car_data_clean[car_data_clean$Price >= 10000, ]
+car_data_clean <- car_data_clean[car_data_clean$Price >= 5000, ]
+car_data_clean <- car_data_clean[car_data_clean$Price <= 100000, ]
 
 attach(car_data_clean)
 ```
+\
 Age of the car is better than production year\
 ```{r}
 car_data_clean$Age <- 2025 - car_data_clean$Prod..year
@@ -88,6 +81,7 @@ car_data_clean$Age <- 2025 - car_data_clean$Prod..year
 # Check dimensions after outlier removal
 dim(car_data_clean)
 ```
+\
 We are in the US so we converted from km to miles to make it easier for us to interpret
 ```{r}
 #Converting Mileage units from km to mi
@@ -97,22 +91,26 @@ car_data_clean$Mileage <- round(car_data_clean$Mileage, 2)
 
 attach(car_data_clean)
 ```
-
+\
+##Building Our Model
 Here we have our first model which includes most of our columns. We got rid of Cylinders and Levy since most of the cars did not have this information. We decided not to look at the Model of the Car since there are too many and the model will become way to complex.
 ```{r}
 base <- lm(Price ~ Age + Mileage + Engine.volume + factor(Manufacturer) + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
 summary(base)
 plot(base)
 ```
+\
 Many of the assumptions are violated like Linearity the mean in the residuals vs fitted graph is not always 0.\
 Equal variance is violated as there is a cone shape.\
 Normality is also violated as there are points that deviate from the 45 degree line in the QQ plot.\
-Lets try to take the log of Price to fix the residuals vs fitted graph.\
+Lets try to take the log of Price to fix the residuals vs fitted graph since the distribution of Price is not normal.\
 ```{r}
+hist(Price)
 model <- lm(log(Price) ~ Age + Mileage + Engine.volume + factor(Manufacturer) + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
 summary(model)
 plot(model)
 ```
+\
 The log transformation improved the linearity assumption but the the other assumptions are still violated.\
 Let's try Box-Cox transformation\
 ```{r}
@@ -128,11 +126,12 @@ base_transformed <- lm(Price_transformed ~ Age + Mileage + Engine.volume + facto
                        factor(Category) + factor(Leather.interior) + factor(Fuel.type) +
                        factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) +
                        factor(Color) + Airbags, data = car_data_clean)
-
+summary(base_transformed)
 plot(base_transformed)
 attach(car_data_clean)
 ```
-Still have the same issue.\
+\
+Still have the same issue but much better.\
 
 We thought that different car brands might hold their value differently as they become older so we added the interation term Manufacturer*Age. So lets get the Age vs Price plot for a few different manufacturers\
 ```{r}
@@ -140,7 +139,7 @@ We thought that different car brands might hold their value differently as they 
 honda_data <- subset(car_data_clean, Manufacturer == "HONDA")
 
 # Plot
-plot(honda_data$Age, honda_data$Price_transformed,
+plot(honda_data$Age, honda_data$Price,
     main = "Age vs Price for Honda Cars",
     xlab = "Age (Years)", ylab = "Price",
     col = "blue", pch = 19)
@@ -149,7 +148,7 @@ plot(honda_data$Age, honda_data$Price_transformed,
 hyundai_data <- subset(car_data_clean, Manufacturer == "HYUNDAI")
 
 # Plot
-plot(hyundai_data$Age, hyundai_data$Price_transformed,
+plot(hyundai_data$Age, hyundai_data$Price,
      main = "Age vs Price for Hyundai Cars",
      xlab = "Age (Years)", ylab = "Price",
      col = "blue", pch = 19)
@@ -158,7 +157,7 @@ plot(hyundai_data$Age, hyundai_data$Price_transformed,
 VOLKSWAGEN_data <- subset(car_data_clean, Manufacturer == "VOLKSWAGEN")
 
 # Plot
-plot(VOLKSWAGEN_data$Age, VOLKSWAGEN_data$Price_transformed,
+plot(VOLKSWAGEN_data$Age, VOLKSWAGEN_data$Price,
      main = "Age vs Price for VOLKSWAGEN Cars",
      xlab = "Age (Years)", ylab = "Price",
      col = "blue", pch = 19)
@@ -167,87 +166,67 @@ plot(VOLKSWAGEN_data$Age, VOLKSWAGEN_data$Price_transformed,
 FORD_data <- subset(car_data_clean, Manufacturer == "FORD")
 
 # Plot
-plot(FORD_data$Age, FORD_data$Price_transformed,
+plot(FORD_data$Age, FORD_data$Price,
      main = "Age vs Price for FORD Cars",
      xlab = "Age (Years)", ylab = "Price",
      col = "blue", pch = 19)
 ```
+\
 There seems to be some differences in the slopes so lets add the interaction term.
 ```{r}
 model2<-lm(Price_transformed ~ Age + Mileage + Engine.volume + factor(Manufacturer) + Manufacturer:Age + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
 summary(model2)
 plot(model2)
 ```
+\
 Maybe there is a relationship between different Manufacturers and the mileage
 ```{r}
-plot(FORD_data$Mileage, FORD_data$Price_transformed,
+plot(FORD_data$Mileage, FORD_data$Price,
      main = "Mileage vs Price for FORD Cars",
      xlab = "Mileage (Miles)", ylab = "Price",
      col = "blue", pch = 19)
-plot(VOLKSWAGEN_data$Mileage, VOLKSWAGEN_data$Price_transformed,
+plot(VOLKSWAGEN_data$Mileage, VOLKSWAGEN_data$Price,
      main = "Mileage vs Price for VOLKSWAGEN Cars",
      xlab = "Mileage (Miles)", ylab = "Price",
      col = "blue", pch = 19)
-plot(hyundai_data$Mileage, hyundai_data$Price_transformed,
+plot(hyundai_data$Mileage, hyundai_data$Price,
      main = "Mileage vs Price for Hyundai Cars",
      xlab = "Mileage (Miles)", ylab = "Price",
      col = "blue", pch = 19)
-plot(honda_data$Mileage, honda_data$Price_transformed,
+plot(honda_data$Mileage, honda_data$Price,
      main = "Mileage vs Price for Honda Cars",
      xlab = "Mileage (Miles)", ylab = "Price",
      col = "blue", pch = 19)
 ```
+\
 There seems to a different slope for the different brands
 ```{r}
 model3<-lm(Price_transformed ~ Age + Mileage + Engine.volume + factor(Manufacturer) + Manufacturer:Age + Manufacturer:Mileage + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
 summary(model3)
 plot(model3)
 ```
-
-We thought that the Mileage and Price might have a quadratic relationship rather than a linear one.
-```{r}
-plot(Mileage, Price_transformed)
-```
-There is a quadratic relationship so we added a quadratic term
-```{r}
-model4<-lm(log(Price) ~ Age + I(Mileage-68735.42) + I((Mileage-68735.42)^2) + Engine.volume + factor(Manufacturer) + Manufacturer:Age + Manufacturer:Mileage + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
-summary(model4)
-plot(model4)
-```
-We then tried the same thing for Age
-```{r}
-plot(Age, Price_transformed)
-```
-There is a quadratic trend here as well.
-```{r}
-model5<-lm(Price_transformed ~ I(Age-11.50747) + I((Age-11.50747)^2) + I(Mileage-68735.42) + I((Mileage-68735.42)^2) + Engine.volume + factor(Manufacturer) + Manufacturer:Age + Manufacturer:Mileage + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
-summary(model5)
-plot(model5)
-```
-
-Adding relationship between Manufacturer and Fuel Type
-```{r}
-model6<-lm(Price_transformed ~ I(Age-11.50747) + I((Age-11.50747)^2) + I(Mileage-68735.42) + I((Mileage-68735.42)^2) + Engine.volume + factor(Manufacturer) + Manufacturer:Age + Manufacturer:Mileage + Manufacturer:Fuel.type + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
-summary(model6)
-plot(model6)
-```
-
+\
 I am going to remove all of the outliers which is all of the points where the absolute value of the standardized residuals is greater than 2
 ```{r}
-# 2. Get standardized residuals
-std_res <- rstandard(model6)
 
-# 3. Identify outliers
+std_res <- rstandard(model3)
+
 outliers <- abs(std_res) > 2
 
-# 4. Remove outliers
 final_data <- car_data_clean[!outliers, ]
 
-# View how many rows were removed
-cat("Rows removed:", sum(outliers), "\n")
-cat("Rows remaining:", nrow(final_data), "\n")
-
-model6<-lm(Price_transformed ~ I(Age-11.50747) + I((Age-11.50747)^2) + I(Mileage-68735.42) + I((Mileage-68735.42)^2) + Engine.volume + factor(Manufacturer) + Manufacturer:Age + Manufacturer:Mileage + Manufacturer:Fuel.type + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = final_data)
-summary(model6)
-plot(model6)
+final_data <- final_data[!final_data$Manufacturer %in% c("FERRARI", "MERCURY", "SCION", "CADILLAC"), ]
 ```
+\
+##Final Model
+```{r}
+model3<-lm(Price_transformed ~ Age + Mileage + Engine.volume + factor(Manufacturer) + Manufacturer:Age + Manufacturer:Mileage + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = final_data)
+summary(model3)
+plot(model3)
+residuals <- residuals(model3)
+plot(1:length(residuals), residuals, main = "Residuals vs. Order")
+```
+\
+With the new model we have fixed linearity assumption as the mean is almost entirely 0 in the residuals vs fitted plot. We tried to use log and box cox transformations to fix the normality and equal spread issue. The normality is better and so is teh equal spread but it is still an issue. There seems to be independence since the residuals vs Order graph does not have any pattern.
+How do we interpret the new model:\
+
