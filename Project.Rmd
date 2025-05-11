@@ -21,7 +21,7 @@ Americans on average spend around $600 every month on a car payement which is ar
 ###Data Loading and Exploration
 ```{r}
 # Load the dataset
-car_data <- read.csv("car_price_prediction.csv")
+car_data <- read.csv("BMGT430/car_price_prediction.csv")
 
 # Check if first row contains column names and remove if needed
 if(car_data[1,1] == "ID") {
