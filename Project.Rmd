@@ -1,5 +1,5 @@
 ---
-title: "project"
+title: "Car Prediction"
 output: html_document
 date: "2025-05-01"
 ---
@@ -10,15 +10,17 @@ library(car)
 library(knitr)
 library(MASS)
 ```
-#Car Price Prediction
+## Why?
 Our goal is to predict the price of a used car and to understand what factors influence the price of the car.\
 Americans on average spend around $600 every month on a car payement which is around 15% of their take home pay. So buying a car that is actually worth it is really important. So we want to make sure that we don't get scammed or overpay for a car.\
-###Research Questions
-1. What is the major variable that determines the price of a car?\
+
+## Research Questions
+1. What Car brand when new is the cheapest and all other features are the same?\
 2. How close is our prediction to the actual value of a car?\
 3. Does a specific car brand hold its value better?
 
-###Data Loading and Exploration
+## Data Loading and Exploration
+We got our data from Kaggle.\
 ```{r}
 # Load the dataset
 car_data <- read.csv("BMGT430/car_price_prediction.csv")
@@ -38,15 +40,14 @@ head(car_data)
 str(car_data)
 ```
 
-##Exploratory Data Analysis
+## Exploratory Data Analysis
 
-###Data Cleaning and Preparation\
+### Data Cleaning and Preparation\
 We need to clean the data up a little\
 First we need to make sure that the numeric data is represented as numerical data and remove any words that might be in the entries.
 ```{r}
 # Convert character columns to appropriate types
 car_data$Price <- as.numeric(car_data$Price)
-car_data$Levy <- as.numeric(ifelse(car_data$Levy == "-", NA, car_data$Levy))
 car_data$Prod..year <- as.numeric(car_data$Prod..year)
 
 # Clean Engine volume (remove "Turbo" from strings and convert to numeric)
@@ -55,7 +56,6 @@ car_data$Engine.volume <- as.numeric(gsub(" Turbo", "", car_data$Engine.volume))
 # Clean Mileage (remove "km" and convert to numeric)
 car_data$Mileage <- as.numeric(gsub(" km", "", car_data$Mileage))
 
-car_data$Cylinders <- as.numeric(car_data$Cylinders)
 car_data$Airbags <- as.numeric(car_data$Airbags)
 ```
 \
@@ -65,7 +65,8 @@ Then we need to remove any rows that have any missing data and this is not a pro
 car_data_clean <- na.omit(car_data)
 ```
 The dataset we selected has a few cars that are way to expensive so lets get rid of those rows.\
-Most of the cars under \$10,000 have issues that make them really cheap so we removed those cars as well.\
+Most of the cars under \$6,000 have issues that make them really cheap so we removed those cars as well.\
+Cars that are more than $100,000 are not realistic for us. Since we won't really be looking to buy cars that are that expensive.\
 ```{r}
 
 car_data_clean <- car_data_clean[car_data_clean$Price >= 5000, ]
@@ -98,6 +99,8 @@ Here we have our first model which includes most of our columns. We got rid of C
 base <- lm(Price ~ Age + Mileage + Engine.volume + factor(Manufacturer) + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
 summary(base)
 plot(base)
+residuals <- residuals(base)
+plot(1:length(residuals), residuals, main = "Residuals vs. Order")
 ```
 \
 Many of the assumptions are violated like Linearity the mean in the residuals vs fitted graph is not always 0.\
@@ -109,6 +112,8 @@ hist(Price)
 model <- lm(log(Price) ~ Age + Mileage + Engine.volume + factor(Manufacturer) + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
 summary(model)
 plot(model)
+residuals <- residuals(model)
+plot(1:length(residuals), residuals, main = "Residuals vs. Order")
 ```
 \
 The log transformation improved the linearity assumption but the the other assumptions are still violated.\
@@ -131,9 +136,9 @@ plot(base_transformed)
 attach(car_data_clean)
 ```
 \
-Still have the same issue but much better.\
+Still have the same issue and not too much better than log so lets stick with log since it is easier to interpret.\
 
-We thought that different car brands might hold their value differently as they become older so we added the interaction term Manufacturer*Age. So lets get the Age vs Price plot for a few different manufacturers\
+We thought that different car brands might hold their value differently as they become older so we added the interation term Manufacturer*Age. So lets get the Age vs Price plot for a few different manufacturers\
 ```{r}
  # Filter data
 honda_data <- subset(car_data_clean, Manufacturer == "HONDA")
@@ -174,39 +179,28 @@ plot(FORD_data$Age, FORD_data$Price,
 \
 There seems to be some differences in the slopes so lets add the interaction term.
 ```{r}
-model2<-lm(Price_transformed ~ Age + Mileage + Engine.volume + factor(Manufacturer) + Manufacturer:Age + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
+model2<-lm(log(Price) ~ Age + Mileage + Engine.volume + Manufacturer + Manufacturer:Age + Category + Leather.interior + Fuel.type + Gear.box.type + Drive.wheels + Wheel + Color + Airbags, data = car_data_clean)
 summary(model2)
 plot(model2)
+residuals <- residuals(model2)
+plot(1:length(residuals), residuals, main = "Residuals vs. Order")
 ```
 \
-Maybe there is a relationship between different Manufacturers and the mileage
+Some of the variables have a high p-value in the summary let us do a F-test to see if we can drop any of them.\
 ```{r}
-plot(FORD_data$Mileage, FORD_data$Price,
-     main = "Mileage vs Price for FORD Cars",
-     xlab = "Mileage (Miles)", ylab = "Price",
-     col = "blue", pch = 19)
-plot(VOLKSWAGEN_data$Mileage, VOLKSWAGEN_data$Price,
-     main = "Mileage vs Price for VOLKSWAGEN Cars",
-     xlab = "Mileage (Miles)", ylab = "Price",
-     col = "blue", pch = 19)
-plot(hyundai_data$Mileage, hyundai_data$Price,
-     main = "Mileage vs Price for Hyundai Cars",
-     xlab = "Mileage (Miles)", ylab = "Price",
-     col = "blue", pch = 19)
-plot(honda_data$Mileage, honda_data$Price,
-     main = "Mileage vs Price for Honda Cars",
-     xlab = "Mileage (Miles)", ylab = "Price",
-     col = "blue", pch = 19)
+drop1(model2, test="F")
 ```
 \
-There seems to a different slope for the different brands
+We can see that Mileage is not very significant so lets remove it
 ```{r}
-model3<-lm(Price_transformed ~ Age + Mileage + Engine.volume + factor(Manufacturer) + Manufacturer:Age + Manufacturer:Mileage + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
+model3<-lm(log(Price) ~ Age + Engine.volume + factor(Manufacturer) + Manufacturer:Age + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = car_data_clean)
 summary(model3)
 plot(model3)
+residuals <- residuals(model3)
+plot(1:length(residuals), residuals, main = "Residuals vs. Order")
 ```
 \
-I am going to remove all of the outliers which is all of the points where the absolute value of the standardized residuals is greater than 2
+I am going to remove all of the outliers which is all of the points where the absolute value of the standardized residuals is greater than 2 and any high leverage points.
 ```{r}
 
 std_res <- rstandard(model3)
@@ -215,37 +209,74 @@ outliers <- abs(std_res) > 2
 
 final_data <- car_data_clean[!outliers, ]
 
-final_data <- final_data[!final_data$Manufacturer %in% c("FERRARI", "MERCURY", "SCION", "CADILLAC"), ]
+leverage <- hatvalues(model3)
+
+# Define threshold for high leverage points
+p <- length(coef(model3))  # number of model parameters
+n <- nrow(final_data)  # number of observations
+threshold <- 2 * p / n     # common rule-of-thumb threshold
+
+# Identify high leverage points
+high_leverage_points <- leverage > threshold
+
+# Remove high leverage points from the data
+final_data <- final_data[!high_leverage_points, ]
+
+final_data <- final_data[!final_data$Manufacturer %in% c("FERRARI", "MERCURY", "SCION", "CADILLAC", "PONTIAC", "TESLA", "VOLVO", "GAZ"), ]
 ```
 \
 ##Final Model
 ```{r}
-model3<-lm(Price_transformed ~ Age + Mileage + Engine.volume + factor(Manufacturer) + Manufacturer:Age + Manufacturer:Mileage + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = final_data)
+model3<-lm(log(Price) ~ Age + Engine.volume + factor(Manufacturer) + Manufacturer:Age + factor(Category) + factor(Leather.interior) + factor(Fuel.type) + factor(Gear.box.type) + factor(Drive.wheels) + factor(Wheel) + factor(Color) + Airbags, data = final_data)
 summary(model3)
 plot(model3)
 residuals <- residuals(model3)
 plot(1:length(residuals), residuals, main = "Residuals vs. Order")
 ```
 \
-With the new model we have fixed linearity assumption as the mean is almost entirely 0 in the residuals vs fitted plot. We tried to use log and box cox transformations to fix the normality and equal spread issue. The normality is better and so is the equal spread but it is still an issue. There seems to be independence since the residuals vs Order graph does not have any pattern.
+With the new model we have fixed linearity assumption as the mean is almost entirely 0 in the residuals vs fitted plot. We tried to use log and box cox transformations to fix the normality and equal spread issue. The normality is better and so is teh equal spread but it is still an issue. There seems to be independence since the residuals vs Order graph does not have any pattern.
 How do we interpret the new model:\
 
-##Predicting Prices
+## Research Questions
+### What Car brand when new is the cheapest and all other features are the same?
+ISUZU is the cheapest. If we look at all of the coefficents for the Manufacturer variables ISUZU has the smallest coefficent relative to the manufacterer ACURA. The coefficent is -5.12 so 100*(e^(-5.12)-1) = -99.4326. An ISUZU car is 99.4326% lower in Price on average in comparison to ACURA for a new car (Age=0) while taking into account other variables. 
+
+### Predicting Car Prices
+Let us try predicting the price of this car which is being sold for $18,992\
+https://www.capitalone.com/cars/vehicle-details/2023/Nissan/Sentra/SR/3N1AB8DV3PY240617\
 ```{r}
+newcar <- data.frame(
+  Age = 2,
+  Mileage = 36,454,
+  Engine.volume = 2.0,
+  Manufacturer = "NISSAN",
+  Category = "Sedan",
+  Leather.interior = "No",
+  Fuel.type = "Petrol",
+  Gear.box.type = "Automatic",
+  Drive.wheels = "Front",
+  Wheel = "Left wheel",
+  Color = "White",
+  Airbags = 8
+)
+
+# Predict transformed price
+pred <- predict(model3, newdata = newcar, interval = "confidence", level = 0.95)
+# pred is a matrix with columns: fit (mean), lwr (lower CI), upr (upper CI)
+
+price_pred <- exp(pred)
+
+print(price_pred)
+
 ### 2011 Silver Toyota Sedan with 100,000 miles, 2.4L engine, leather interior, takes gasoline as fuel, automatic transmission, front wheel drive, driver side on the left, and 4 airbags. A standard 2011 Toyota Sedan.
 obs <- data.frame(Age = 14, Mileage = 100000, Engine.volume = 2.4, Manufacturer = "TOYOTA", Category = "Sedan", Leather.interior = "Yes", Fuel.type = "Petrol", Gear.box.type = "Automatic", Drive.wheels = "Front", Wheel = "Left wheel", Color = "Silver", Airbags = 4)
 
-predict(model3, obs, interval = "confidence")
-
-pred <- predict(model3, obs, interval = "confidence")
+pred2 <- predict(model3, obs, interval = "confidence")
 
 #Transforming final price back to dollars from log
-pred_back <- exp(pred)
+price_pred2 <- exp(pred2)
 
-#Transforming final price back to dollars from box-cox
-lambda_price <- best_lambda
-pred_back <- (lambda_price * pred + 1)^(1 / lambda_price)
-pred_back
+print(price_pred2)
 
 #-------------------------------------------------------------------------------------------------------------
 
@@ -253,17 +284,16 @@ pred_back
 
 obs_2 <- data.frame(Age = 5, Mileage = 40000, Engine.volume = 3.5, Manufacturer = "MERCEDES-BENZ", Category = "Sedan", Leather.interior = "Yes", Fuel.type = "Petrol", Gear.box.type = "Automatic", Drive.wheels = "Front", Wheel = "Left wheel", Color = "Silver", Airbags = 4)
 
-predict(model3, obs_2, interval = "confidence")
 
-pred_2 <- predict(model3, obs_2, interval = "confidence")
+pred_3 <- predict(model3, obs_2, interval = "confidence")
 
 #Transforming final price back to dollars from log
-pred_back_2 <- exp(pred_2)
 
 #Transforming final price back to dollars from box-cox
-lambda_price <- best_lambda
-pred_back_2 <- (lambda_price * pred_2 + 1)^(1 / lambda_price)
-pred_back_2
+price_pred3 <- exp(pred_3)
+
+print(price_pred3)
+
 
 #-------------------------------------------------------------------------------------------------------------
 
@@ -273,14 +303,19 @@ obs_3 <- data.frame(Age = 8, Mileage = 60000, Engine.volume = 2.4, Manufacturer 
 
 predict(model3, obs_3, interval = "confidence")
 
-pred_3 <- predict(model3, obs_3, interval = "confidence")
+pred_4 <- predict(model3, obs_3, interval = "confidence")
 
 #Transforming final price back to dollars from log
-pred_back_3 <- exp(pred_3)
+price_pred4 <- exp(pred4)
 
-#Transforming final price back to dollars from box-cox
-lambda_price <- best_lambda
-pred_back_3 <- (lambda_price * pred_3 + 1)^(1 / lambda_price)
-pred_back_3
+print(price_pred4)
+
+
 ```
 
+The actual price is between our confidence interval and only around $100 off our point estimate.\
+The model does a good job predicting the prices of cars..\
+Our model could be useful when it come to making a decision on whether to buy a car or not as it will help people understand if a car listing is too high.\
+
+### Does a specific car brand hold its value better (As the car brand ages which car does not depreciate as much)?
+Since we are looking to see which car depreciates the most when Age increases. So we are trying to see which coefficent is the largest for the interaction term between Manufacturer and Age. Hummer has the largest coefficent which is 0.2010 so we get 100(e^(0.2010)-1)=22.2625. So that means for an increase of 1 year in Age the Hummer car's Price on avergae increases by 22.26% in relation to ACURA.  
